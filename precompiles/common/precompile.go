@@ -65,18 +65,6 @@ func (p Precompile) RequiredGas(input []byte, isTransaction bool) uint64 {
 	return p.KvGasConfig.ReadCostFlat + (p.KvGasConfig.ReadCostPerByte * uint64(len(argsBz)))
 }
 
-// RunAtomic is used within the Run function of each Precompile implementation.
-// It handles rolling back to the provided snapshot if an error is returned from the core precompile logic.
-// Note: This is only required for stateful precompiles.
-func (p Precompile) RunAtomic(s Snapshot, stateDB *statedb.StateDB, fn func() ([]byte, error)) ([]byte, error) {
-	bz, err := fn()
-	if err != nil {
-		// revert to snapshot on error
-		stateDB.RevertMultiStore(s.MultiStore, s.Events)
-	}
-	return bz, err
-}
-
 // RunSetup runs the initial setup required to run a transaction or a query.
 // It returns the sdk Context, EVM stateDB, ABI method, initial gas and calling arguments.
 func (p Precompile) RunSetup(
@@ -100,6 +88,13 @@ func (p Precompile) RunSetup(
 	// to be able to revert the changes
 	s.MultiStore = stateDB.MultiStoreSnapshot()
 	s.Events = ctx.EventManager().Events()
+
+	// add precompileCall entry on the stateDB journal
+	// this allows to revert the changes within an evm tx
+	err = stateDB.AddPrecompileFn(p.Address(), s.MultiStore, s.Events)
+	if err != nil {
+		return sdk.Context{}, nil, s, nil, uint64(0), nil, err
+	}
 
 	// commit the current changes in the cache ctx
 	// to get the updated state for the precompile call
@@ -169,10 +164,6 @@ func HandleGasError(ctx sdk.Context, contract *vm.Contract, initialGas storetype
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case storetypes.ErrorOutOfGas:
-
-				// revert to snapshot on error
-				stateDB.RevertMultiStore(snapshot.MultiStore, snapshot.Events)
-
 				// update contract gas
 				usedGas := ctx.GasMeter().GasConsumed() - initialGas
 				_ = contract.UseGas(usedGas)
@@ -189,8 +180,6 @@ func HandleGasError(ctx sdk.Context, contract *vm.Contract, initialGas storetype
 }
 
 // AddJournalEntries adds the balanceChange (if corresponds)
-// and precompileCall entries on the stateDB journal
-// This allows to revert the call changes within an evm tx
 func (p Precompile) AddJournalEntries(stateDB *statedb.StateDB, s Snapshot) error {
 	for _, entry := range p.journalEntries {
 		switch entry.Op {
@@ -203,7 +192,7 @@ func (p Precompile) AddJournalEntries(stateDB *statedb.StateDB, s Snapshot) erro
 		}
 	}
 
-	return stateDB.AddPrecompileFn(p.Address(), s.MultiStore, s.Events)
+	return nil
 }
 
 // SetBalanceChangeEntries sets the balanceChange entries
