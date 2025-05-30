@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	cmn "github.com/cosmos/evm/precompiles/common"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributionkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
@@ -83,23 +82,6 @@ func (p *Precompile) ClaimRewards(
 		totalCoins = totalCoins.Add(coins...)
 	}
 
-	// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB.
-	// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-	// this happens when the precompile is called from a smart contract
-	if contract.CallerAddress != origin {
-		// rewards go to the withdrawer address
-		withdrawerHexAddr, err := p.getWithdrawerHexAddr(ctx, delegatorAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		convertedAmount := evmtypes.ConvertAmountTo18DecimalsBigInt(totalCoins.AmountOf(evmtypes.GetEVMCoinDenom()).BigInt())
-		// check if converted amount is greater than zero
-		if convertedAmount.Cmp(common.Big0) == 1 {
-			p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(withdrawerHexAddr, convertedAmount, cmn.Add))
-		}
-	}
-
 	if err := p.EmitClaimRewardsEvent(ctx, stateDB, delegatorAddr, totalCoins); err != nil {
 		return nil, err
 	}
@@ -167,23 +149,6 @@ func (p *Precompile) WithdrawDelegatorReward(
 		return nil, err
 	}
 
-	// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB
-	// when calling the precompile from a smart contract
-	// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-	if contract.CallerAddress != origin {
-		// rewards go to the withdrawer address
-		withdrawerHexAddr, err := p.getWithdrawerHexAddr(ctx, delegatorHexAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		convertedAmount := evmtypes.ConvertAmountTo18DecimalsBigInt(res.Amount.AmountOf(evmtypes.GetEVMCoinDenom()).BigInt())
-		// check if converted amount is greater than zero
-		if convertedAmount.Cmp(common.Big0) == 1 {
-			p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(withdrawerHexAddr, convertedAmount, cmn.Add))
-		}
-	}
-
 	if err = p.EmitWithdrawDelegatorRewardEvent(ctx, stateDB, delegatorHexAddr, msg.ValidatorAddress, res.Amount); err != nil {
 		return nil, err
 	}
@@ -218,24 +183,6 @@ func (p *Precompile) WithdrawValidatorCommission(
 		return nil, err
 	}
 
-	// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB
-	// when calling the precompile from a smart contract
-	// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-	if contract.CallerAddress != origin {
-		// commissions go to the withdrawer address
-		withdrawerHexAddr, err := p.getWithdrawerHexAddr(ctx, validatorHexAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		// TODO: check in all methods here if evm denom is the correct denom to use!
-		convertedAmount := evmtypes.ConvertAmountTo18DecimalsBigInt(res.Amount.AmountOf(evmtypes.GetEVMCoinDenom()).BigInt())
-		// check if converted amount is greater than zero
-		if convertedAmount.Cmp(common.Big0) == 1 {
-			p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(withdrawerHexAddr, convertedAmount, cmn.Add))
-		}
-	}
-
 	if err = p.EmitWithdrawValidatorCommissionEvent(ctx, stateDB, msg.ValidatorAddress, res.Amount); err != nil {
 		return nil, err
 	}
@@ -252,12 +199,6 @@ func (p *Precompile) FundCommunityPool(
 	method *abi.Method,
 	args []interface{},
 ) ([]byte, error) {
-	// TODO: check if this is correct? Community pool should be funded with sdk base denom instead of evm denom right?
-	baseDenom, err := sdk.GetBaseDenom()
-	if err != nil {
-		return nil, err
-	}
-
 	msg, depositorHexAddr, err := NewMsgFundCommunityPool(args)
 	if err != nil {
 		return nil, err
@@ -274,18 +215,6 @@ func (p *Precompile) FundCommunityPool(
 	_, err = msgSrv.FundCommunityPool(ctx, msg)
 	if err != nil {
 		return nil, err
-	}
-
-	// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB
-	// when calling the precompile from a smart contract
-	// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-	if contract.CallerAddress != origin {
-		// TODO: check if correct - should the balance change in the state DB be for the evm denom?? do we need scaling here?
-		convertedAmount := evmtypes.ConvertAmountTo18DecimalsBigInt(msg.Amount.AmountOf(baseDenom).BigInt())
-		// check if converted amount is greater than zero
-		if convertedAmount.Cmp(common.Big0) == 1 {
-			p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(depositorHexAddr, convertedAmount, cmn.Sub))
-		}
 	}
 
 	if err = p.EmitFundCommunityPoolEvent(ctx, stateDB, depositorHexAddr, msg.Amount); err != nil {
@@ -321,20 +250,6 @@ func (p *Precompile) DepositValidatorRewardsPool(
 	_, err = msgSrv.DepositValidatorRewardsPool(ctx, msg)
 	if err != nil {
 		return nil, err
-	}
-
-	// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB
-	// when calling the precompile from a smart contract
-	// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-	if contract.CallerAddress != origin {
-		if found, evmCoinAmount := msg.Amount.Find(evmtypes.GetEVMCoinDenom()); found {
-			// TODO: check if correct - should the balance change in the state DB be for the evm denom?? do we need scaling here?
-			convertedAmount := evmtypes.ConvertAmountTo18DecimalsBigInt(evmCoinAmount.Amount.BigInt())
-			// check if converted amount is greater than zero
-			if convertedAmount.Cmp(common.Big0) == 1 {
-				p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(depositorHexAddr, convertedAmount, cmn.Sub))
-			}
-		}
 	}
 
 	if err = p.EmitDepositValidatorRewardsPoolEvent(ctx, stateDB, depositorHexAddr, msg.ValidatorAddress, msg.Amount); err != nil {

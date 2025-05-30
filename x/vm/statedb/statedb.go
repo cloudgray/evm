@@ -348,6 +348,24 @@ func (s *StateDB) setStateObject(object *stateObject) {
 	s.stateObjects[object.Address()] = object
 }
 
+// ExecuteNativeAction executes native action in isolate,
+// the writes will be revert when either the native action itself fail
+// or the wrapping message call reverted.
+func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, error)) ([]byte, error) {
+	snapshot := s.MultiStoreSnapshot()
+	eventManager := sdk.NewEventManager()
+	events := eventManager.Events()
+
+	bz, err := action(s.ctx.WithEventManager(eventManager))
+	if err != nil {
+		s.RevertMultiStore(snapshot, eventManager.Events())
+		return nil, err
+	}
+
+	s.journal.append(precompileCallChange{multiStore: snapshot, events: events})
+	return bz, nil
+}
+
 /*
  * SETTERS
  */

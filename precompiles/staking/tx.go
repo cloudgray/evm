@@ -8,9 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	cmn "github.com/cosmos/evm/precompiles/common"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 )
@@ -178,16 +175,6 @@ func (p *Precompile) Delegate(
 	// Emit the event for the delegate transaction
 	if err = p.EmitDelegateEvent(ctx, stateDB, msg, delegatorHexAddr); err != nil {
 		return nil, err
-	}
-
-	if contract.CallerAddress != origin && msg.Amount.Denom == evmtypes.GetEVMCoinDenom() {
-		// NOTE: This ensures that the changes in the bank keeper are correctly mirrored to the EVM stateDB
-		// when calling the precompile from a smart contract
-		// This prevents the stateDB from overwriting the changed balance in the bank keeper when committing the EVM state.
-
-		// Need to scale the amount to 18 decimals for the EVM balance change entry
-		scaledAmt := evmtypes.ConvertAmountTo18DecimalsBigInt(msg.Amount.Amount.BigInt())
-		p.SetBalanceChangeEntries(cmn.NewBalanceChangeEntry(delegatorHexAddr, scaledAmt, cmn.Sub))
 	}
 
 	return method.Outputs.Pack(true)

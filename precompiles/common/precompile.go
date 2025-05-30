@@ -195,14 +195,6 @@ func (p Precompile) AddJournalEntries(stateDB *statedb.StateDB, s Snapshot) erro
 	return nil
 }
 
-// SetBalanceChangeEntries sets the balanceChange entries
-// as the journalEntries field of the precompile.
-// These entries will be added to the stateDB's journal
-// when calling the AddJournalEntries function
-func (p *Precompile) SetBalanceChangeEntries(entries ...BalanceChangeEntry) {
-	p.journalEntries = entries
-}
-
 func (p Precompile) Address() common.Address {
 	return p.address
 }
