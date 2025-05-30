@@ -144,7 +144,7 @@ func (p Precompile) RunSetup(
 
 	initialGas := ctx.GasMeter().GasConsumed()
 
-	defer HandleGasError(ctx, contract, initialGas, &err, stateDB, s)()
+	defer HandleGasError(ctx, contract, initialGas, &err)()
 
 	// set the default SDK gas configuration to track gas usage
 	// we are changing the gas meter type, so it panics gracefully when out of gas
@@ -159,7 +159,7 @@ func (p Precompile) RunSetup(
 
 // HandleGasError handles the out of gas panic by resetting the gas meter and returning an error.
 // This is used in order to avoid panics and to allow for the EVM to continue cleanup if the tx or query run out of gas.
-func HandleGasError(ctx sdk.Context, contract *vm.Contract, initialGas storetypes.Gas, err *error, stateDB *statedb.StateDB, snapshot Snapshot) func() {
+func HandleGasError(ctx sdk.Context, contract *vm.Contract, initialGas storetypes.Gas, err *error) func() {
 	return func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
