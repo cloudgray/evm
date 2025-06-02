@@ -2,7 +2,6 @@ package statedb
 
 import (
 	"bytes"
-	"math/big"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,14 +17,12 @@ import (
 // These objects are stored in the storage of auth module.
 type Account struct {
 	Nonce    uint64
-	Balance  *big.Int
 	CodeHash []byte
 }
 
 // NewEmptyAccount returns an empty account.
 func NewEmptyAccount() *Account {
 	return &Account{
-		Balance:  new(big.Int),
 		CodeHash: types.EmptyCodeHash,
 	}
 }
@@ -54,6 +51,9 @@ func (s Storage) SortedKeys() []common.Hash {
 type stateObject struct {
 	db *StateDB
 
+	// to check the dirtiness of the account ,it's nil if the account is newly created
+	originalAccount *Account
+
 	account Account
 	code    []byte
 
@@ -69,60 +69,31 @@ type stateObject struct {
 }
 
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, account Account) *stateObject {
-	if account.Balance == nil {
-		account.Balance = new(big.Int)
-	}
-
-	if account.CodeHash == nil {
-		account.CodeHash = types.EmptyCodeHash
+func newObject(db *StateDB, address common.Address, origAccount *Account) *stateObject {
+	var account Account
+	if origAccount == nil {
+		account = *(NewEmptyAccount())
+	} else {
+		account = *origAccount
 	}
 
 	return &stateObject{
-		db:            db,
-		address:       address,
-		account:       account,
-		originStorage: make(Storage),
-		dirtyStorage:  make(Storage),
+		db:              db,
+		address:         address,
+		originalAccount: origAccount,
+		account:         account,
+		originStorage:   make(Storage),
+		dirtyStorage:    make(Storage),
 	}
 }
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.account.Nonce == 0 &&
-		s.account.Balance.Sign() == 0 &&
-		types.IsEmptyCodeHash(s.account.CodeHash)
+	return s.account.Nonce == 0 && types.IsEmptyCodeHash(s.account.CodeHash)
 }
 
 func (s *stateObject) markSuicided() {
 	s.suicided = true
-}
-
-// AddBalance adds amount to s's balance.
-// It is used to add funds to the destination account of a transfer.
-func (s *stateObject) AddBalance(amount *big.Int) {
-	if amount.Sign() == 0 {
-		return
-	}
-	s.SetBalance(new(big.Int).Add(s.Balance(), amount))
-}
-
-// SubBalance removes amount from s's balance.
-// It is used to remove funds from the origin account of a transfer.
-func (s *stateObject) SubBalance(amount *big.Int) {
-	if amount.Sign() == 0 {
-		return
-	}
-	s.SetBalance(new(big.Int).Sub(s.Balance(), amount))
-}
-
-// SetBalance update account balance.
-func (s *stateObject) SetBalance(amount *big.Int) {
-	s.db.journal.append(balanceChange{
-		account: &s.address,
-		prev:    new(big.Int).Set(s.account.Balance),
-	})
-	s.setBalance(amount)
 }
 
 // AddPrecompileFn appends to the journal an entry
@@ -133,10 +104,6 @@ func (s *stateObject) AddPrecompileFn(cms storetypes.CacheMultiStore, events sdk
 		multiStore: cms,
 		events:     events,
 	})
-}
-
-func (s *stateObject) setBalance(amount *big.Int) {
-	s.account.Balance = amount
 }
 
 //
@@ -203,11 +170,6 @@ func (s *stateObject) setNonce(nonce uint64) {
 // CodeHash returns the code hash of account
 func (s *stateObject) CodeHash() []byte {
 	return s.account.CodeHash
-}
-
-// Balance returns the balance of account
-func (s *stateObject) Balance() *big.Int {
-	return s.account.Balance
 }
 
 // Nonce returns the nonce of account

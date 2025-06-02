@@ -51,19 +51,16 @@ func (k Keeper) RegisterERC20CodeHash(ctx sdk.Context, erc20Addr common.Address)
 	}
 
 	var (
-		nonce   uint64
-		balance = common.Big0
+		nonce uint64
 	)
 	// keep balance and nonce if account exists
 	if acc := k.evmKeeper.GetAccount(ctx, erc20Addr); acc != nil {
 		nonce = acc.Nonce
-		balance = acc.Balance
 	}
 
 	return k.evmKeeper.SetAccount(ctx, erc20Addr, statedb.Account{
 		CodeHash: codeHash,
 		Nonce:    nonce,
-		Balance:  balance,
 	})
 }
 
@@ -72,19 +69,16 @@ func (k Keeper) UnRegisterERC20CodeHash(ctx sdk.Context, erc20Addr common.Addres
 	emptyCodeHash := crypto.Keccak256(nil)
 
 	var (
-		nonce   uint64
-		balance = common.Big0
+		nonce uint64
 	)
 	// keep balance and nonce if account exists
 	if acc := k.evmKeeper.GetAccount(ctx, erc20Addr); acc != nil {
 		nonce = acc.Nonce
-		balance = acc.Balance
 	}
 
 	return k.evmKeeper.SetAccount(ctx, erc20Addr, statedb.Account{
 		CodeHash: emptyCodeHash,
 		Nonce:    nonce,
-		Balance:  balance,
 	})
 }
 

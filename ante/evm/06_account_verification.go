@@ -4,12 +4,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
-	"github.com/cosmos/evm/x/vm/keeper"
 	"github.com/cosmos/evm/x/vm/statedb"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	errorsmod "cosmossdk.io/errors"
-	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
@@ -41,9 +39,10 @@ func VerifyAccountBalance(
 		account = statedb.NewEmptyAccount()
 	}
 
-	if err := keeper.CheckSenderBalance(sdkmath.NewIntFromBigInt(account.Balance), txData); err != nil {
-		return errorsmod.Wrap(err, "failed to check sender balance")
-	}
+	// TODO: Check account balance against the transaction cost.
+	// if err := keeper.CheckSenderBalance(sdkmath.NewIntFromBigInt(account.Balance), txData); err != nil {
+	// 	return errorsmod.Wrap(err, "failed to check sender balance")
+	// }
 
 	return nil
 }

@@ -96,7 +96,7 @@ var _ = Describe("Calling distribution precompile from EOA", func() {
 		})
 
 		It("should return error if the provided gasLimit is too low", func() {
-			txArgs.GasLimit = 30000
+			txArgs.GasLimit = 10000
 
 			callArgs.Args = []interface{}{
 				s.keyring.GetAddr(0),
@@ -108,7 +108,7 @@ var _ = Describe("Calling distribution precompile from EOA", func() {
 				callArgs,
 				outOfGasCheck,
 			)
-			Expect(err).To(BeNil(), "error while calling the precompile")
+			Expect(err).NotTo(BeNil(), "expected error while calling the precompile")
 			Expect(s.network.NextBlock()).To(BeNil(), "error on NextBlock")
 
 			// withdraw address should remain unchanged
@@ -413,7 +413,7 @@ var _ = Describe("Calling distribution precompile from EOA", func() {
 		})
 
 		It("should return error if the provided gasLimit is too low", func() {
-			txArgs.GasLimit = 50000
+			txArgs.GasLimit = 10000
 			callArgs.Args = []interface{}{
 				s.network.GetValidators()[0].OperatorAddress,
 			}
@@ -424,7 +424,7 @@ var _ = Describe("Calling distribution precompile from EOA", func() {
 				callArgs,
 				outOfGasCheck,
 			)
-			Expect(err).To(BeNil(), "error while calling the precompile")
+			Expect(err).NotTo(BeNil(), "error while calling the precompile")
 		})
 
 		It("should return error if the origin is different than the validator", func() {

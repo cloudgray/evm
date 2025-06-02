@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/cosmos/evm/x/vm/types"
 
+	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/store/prefix"
 	storetypes "cosmossdk.io/store/types"
 
@@ -28,7 +29,6 @@ func (k *Keeper) GetAccount(ctx sdk.Context, addr common.Address) *statedb.Accou
 		return nil
 	}
 
-	acct.Balance = k.GetBalance(ctx, addr)
 	return acct
 }
 
@@ -106,6 +106,24 @@ func (k *Keeper) ForEachStorage(ctx sdk.Context, addr common.Address, cb func(ke
 	}
 }
 
+// Transfer transfers coins from sender to recipient, implements `statedb.Keeper` interface.
+func (k *Keeper) Transfer(ctx sdk.Context, sender, recipient common.Address, amount *big.Int) error {
+	senderAcc := sdk.AccAddress(sender.Bytes())
+	recipientAcc := sdk.AccAddress(recipient.Bytes())
+	coins := sdk.NewCoins(sdk.NewCoin(types.GetEVMCoinDenom(), sdkmath.NewIntFromBigInt(amount)))
+	return k.bankWrapper.SendCoins(ctx, senderAcc, recipientAcc, coins)
+}
+
+// AddBalance adds coins to the account's balance, implements `statedb.Keeper` interface.
+func (k *Keeper) AddBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error {
+	return k.bankWrapper.MintAmountToAccount(ctx, sdk.AccAddress(addr.Bytes()), amount)
+}
+
+// SubBalance subtracts coins from the account's balance, implements `statedb.Keeper` interface.
+func (k *Keeper) SubBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error {
+	return k.bankWrapper.BurnAmountFromAccount(ctx, sdk.AccAddress(addr.Bytes()), amount)
+}
+
 // SetBalance update account's balance, compare with current balance first, then decide to mint or burn.
 func (k *Keeper) SetBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error {
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
@@ -149,16 +167,11 @@ func (k *Keeper) SetAccount(ctx sdk.Context, addr common.Address, account stated
 	}
 	k.accountKeeper.SetAccount(ctx, acct)
 
-	if err := k.SetBalance(ctx, addr, account.Balance); err != nil {
-		return err
-	}
-
 	k.Logger(ctx).Debug(
 		"account updated",
 		"ethereum-address", addr.Hex(),
 		"nonce", account.Nonce,
 		"codeHash", common.BytesToHash(account.CodeHash).Hex(),
-		"balance", account.Balance,
 	)
 	return nil
 }

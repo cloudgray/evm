@@ -27,6 +27,10 @@ type revision struct {
 	journalIndex int
 }
 
+func Transfer(db vm.StateDB, sender, receipient common.Address, amount *big.Int) {
+	db.(*StateDB).Transfer(sender, receipient, amount)
+}
+
 var _ vm.StateDB = &StateDB{}
 
 // StateDB structs within the ethereum protocol are used to store anything
@@ -64,6 +68,9 @@ type StateDB struct {
 
 	// The count of calls to precompiles
 	precompileCallsCounter uint8
+
+	// Handle balances natively
+	err error
 }
 
 // New creates a new state from a given trie.
@@ -182,11 +189,7 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.Balance()
-	}
-	return common.Big0
+	return s.keeper.GetBalance(s.ctx, addr)
 }
 
 // GetNonce returns the nonce of account, 0 if not exists.
@@ -277,7 +280,7 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 		return nil
 	}
 	// Insert into the live set
-	obj := newObject(s, addr, *account)
+	obj := newObject(s, addr, account)
 	s.setStateObject(obj)
 	return obj
 }
@@ -296,7 +299,7 @@ func (s *StateDB) getOrNewStateObject(addr common.Address) *stateObject {
 func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
 	prev = s.getStateObject(addr)
 
-	newobj = newObject(s, addr, Account{})
+	newobj = newObject(s, addr, nil)
 	if prev == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
@@ -320,10 +323,7 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (s *StateDB) CreateAccount(addr common.Address) {
-	newObj, prev := s.createObject(addr)
-	if prev != nil {
-		newObj.setBalance(prev.account.Balance)
-	}
+	s.createObject(addr)
 }
 
 // ForEachStorage iterate the contract storage, the iteration order is not defined.
@@ -386,19 +386,61 @@ func (s *StateDB) AddPrecompileFn(addr common.Address, cms storetypes.CacheMulti
 	return nil
 }
 
+// Transfer from one account to another
+func (s *StateDB) Transfer(sender, recipient common.Address, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	if amount.Sign() < 0 {
+		panic("negative amount")
+	}
+	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
+		err := s.keeper.Transfer(ctx, sender, recipient, amount)
+		return nil, err
+	}); err != nil {
+		s.err = err
+	}
+}
+
 // AddBalance adds amount to the account associated with addr.
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
-	stateObject := s.getOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.AddBalance(amount)
+	if amount.Sign() == 0 {
+		return
+	}
+	if amount.Sign() < 0 {
+		panic("negative amount")
+	}
+	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
+		err := s.keeper.AddBalance(ctx, addr, amount)
+		return nil, err
+	}); err != nil {
+		s.err = err
 	}
 }
 
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
-	stateObject := s.getOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.SubBalance(amount)
+	if amount.Sign() == 0 {
+		return
+	}
+	if amount.Sign() < 0 {
+		panic("negative amount")
+	}
+	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
+		err := s.keeper.SubBalance(ctx, addr, amount)
+		return nil, err
+	}); err != nil {
+		s.err = err
+	}
+}
+
+// SetBalance is called by state override
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
+		err := s.keeper.SetBalance(ctx, addr, amount)
+		return nil, err
+	}); err != nil {
+		s.err = err
 	}
 }
 
@@ -437,12 +479,16 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 		return false
 	}
 	s.journal.append(suicideChange{
-		account:     &addr,
-		prev:        stateObject.suicided,
-		prevbalance: new(big.Int).Set(stateObject.Balance()),
+		account: &addr,
+		prev:    stateObject.suicided,
 	})
 	stateObject.markSuicided()
-	stateObject.account.Balance = new(big.Int)
+
+	// clear balance
+	balance := s.GetBalance(addr)
+	if balance.Sign() > 0 {
+		s.SubBalance(addr, balance)
+	}
 
 	return true
 }
@@ -535,6 +581,11 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 // Commit writes the dirty states to keeper
 // the StateDB object should be discarded after committed.
 func (s *StateDB) Commit() error {
+	// if there's an error during the execution, revert.
+	if s.err != nil {
+		return s.err
+	}
+
 	// writeCache func will exist only when there's a call to a precompile.
 	// It applies all the store updates preformed by precompile calls.
 	if s.writeCache != nil {
@@ -547,6 +598,10 @@ func (s *StateDB) Commit() error {
 // This function is used before any precompile call to make sure the cacheCtx
 // is updated with the latest changes within the tx (StateDB's journal entries).
 func (s *StateDB) CommitWithCacheCtx() error {
+	if s.err != nil {
+		return s.err
+	}
+
 	return s.commitWithCtx(s.cacheCtx)
 }
 

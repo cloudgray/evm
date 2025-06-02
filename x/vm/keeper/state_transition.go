@@ -39,7 +39,7 @@ func (k *Keeper) NewEVM(
 ) *vm.EVM {
 	blockCtx := vm.BlockContext{
 		CanTransfer: evmcore.CanTransfer,
-		Transfer:    evmcore.Transfer,
+		Transfer:    statedb.Transfer,
 		GetHash:     k.GetHashFn(ctx),
 		Coinbase:    cfg.CoinBase,
 		GasLimit:    cosmosevmtypes.BlockGasLimit(ctx),

@@ -1,8 +1,6 @@
 package keeper_test
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -21,7 +19,6 @@ func (suite *KeeperTestSuite) TestRegisterERC20CodeHash() {
 		bytecode             = common.FromHex(types.Erc20Bytecode)
 		codeHash             = crypto.Keccak256(bytecode)
 		nonce         uint64 = 10
-		balance              = big.NewInt(100)
 		emptyCodeHash        = crypto.Keccak256(nil)
 	)
 
@@ -44,7 +41,6 @@ func (suite *KeeperTestSuite) TestRegisterERC20CodeHash() {
 				err := suite.network.App.EVMKeeper.SetAccount(ctx, account, statedb.Account{
 					CodeHash: codeHash,
 					Nonce:    nonce,
-					Balance:  balance,
 				})
 				suite.Require().NoError(err)
 			},
@@ -62,10 +58,8 @@ func (suite *KeeperTestSuite) TestRegisterERC20CodeHash() {
 		acc := suite.network.App.EVMKeeper.GetAccount(ctx, account)
 		suite.Require().Equal(codeHash, acc.CodeHash)
 		if tc.existent {
-			suite.Require().Equal(balance, acc.Balance)
 			suite.Require().Equal(nonce, acc.Nonce)
 		} else {
-			suite.Require().Equal(common.Big0, acc.Balance)
 			suite.Require().Equal(uint64(0), acc.Nonce)
 		}
 
@@ -75,10 +69,8 @@ func (suite *KeeperTestSuite) TestRegisterERC20CodeHash() {
 		acc = suite.network.App.EVMKeeper.GetAccount(ctx, account)
 		suite.Require().Equal(emptyCodeHash, acc.CodeHash)
 		if tc.existent {
-			suite.Require().Equal(balance, acc.Balance)
 			suite.Require().Equal(nonce, acc.Nonce)
 		} else {
-			suite.Require().Equal(common.Big0, acc.Balance)
 			suite.Require().Equal(uint64(0), acc.Nonce)
 		}
 

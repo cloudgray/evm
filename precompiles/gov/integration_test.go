@@ -319,13 +319,13 @@ var _ = Describe("Calling governance precompile from EOA", func() {
 		})
 
 		It("should return error if the provided gasLimit is too low", func() {
-			txArgs.GasLimit = 30000
+			txArgs.GasLimit = 10000
 			callArgs.Args = []interface{}{
 				s.keyring.GetAddr(0), proposalID, option, metadata,
 			}
 
 			_, _, err := s.factory.CallContractAndCheckLogs(s.keyring.GetPrivKey(0), txArgs, callArgs, outOfGasCheck)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(BeNil(), "error while calling the precompile with low gas limit")
 
 			// tally result yes count should remain unchanged
 			proposal, _ := s.network.App.GovKeeper.Proposals.Get(s.network.GetContext(), proposalID)

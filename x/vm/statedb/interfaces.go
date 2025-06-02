@@ -1,6 +1,8 @@
 package statedb
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
@@ -19,6 +21,12 @@ type ExtStateDB interface {
 
 // Keeper provide underlying storage of StateDB
 type Keeper interface {
+	Transfer(ctx sdk.Context, sender, recipient common.Address, amount *big.Int) error
+	AddBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error
+	SubBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error
+	SetBalance(ctx sdk.Context, addr common.Address, amount *big.Int) error
+	GetBalance(ctx sdk.Context, addr common.Address) *big.Int
+
 	// Read methods
 	GetAccount(ctx sdk.Context, addr common.Address) *Account
 	GetState(ctx sdk.Context, addr common.Address, key common.Hash) common.Hash

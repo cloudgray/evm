@@ -251,9 +251,9 @@ func (suite *KeeperTestSuite) TestCheckSenderBalance() {
 
 			txData, _ := evmtypes.UnpackTxData(tx.Data)
 
-			acct := suite.network.App.EVMKeeper.GetAccountOrEmpty(suite.network.GetContext(), addr)
+			balance := suite.network.App.EVMKeeper.GetBalance(suite.network.GetContext(), addr)
 			err := keeper.CheckSenderBalance(
-				sdkmath.NewIntFromBigInt(acct.Balance),
+				sdkmath.NewIntFromBigInt(balance),
 				txData,
 			)
 

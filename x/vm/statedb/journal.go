@@ -104,9 +104,8 @@ type (
 		prev *stateObject
 	}
 	suicideChange struct {
-		account     *common.Address
-		prev        bool // whether account had already suicided
-		prevbalance *big.Int
+		account *common.Address
+		prev    bool // whether account had already suicided
 	}
 
 	// Changes to individual accounts.
@@ -151,7 +150,6 @@ var (
 	_ JournalEntry = createObjectChange{}
 	_ JournalEntry = resetObjectChange{}
 	_ JournalEntry = suicideChange{}
-	_ JournalEntry = balanceChange{}
 	_ JournalEntry = nonceChange{}
 	_ JournalEntry = storageChange{}
 	_ JournalEntry = codeChange{}
@@ -192,19 +190,10 @@ func (ch suicideChange) Revert(s *StateDB) {
 	obj := s.getStateObject(*ch.account)
 	if obj != nil {
 		obj.suicided = ch.prev
-		obj.setBalance(ch.prevbalance)
 	}
 }
 
 func (ch suicideChange) Dirtied() *common.Address {
-	return ch.account
-}
-
-func (ch balanceChange) Revert(s *StateDB) {
-	s.getStateObject(*ch.account).setBalance(ch.prev)
-}
-
-func (ch balanceChange) Dirtied() *common.Address {
 	return ch.account
 }
 

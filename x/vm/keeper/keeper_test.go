@@ -110,7 +110,6 @@ func (suite *KeeperTestSuite) TestGetAccountStorage() {
 func (suite *KeeperTestSuite) TestGetAccountOrEmpty() {
 	ctx := suite.network.GetContext()
 	empty := statedb.Account{
-		Balance:  new(big.Int),
 		CodeHash: evmtypes.EmptyCodeHash,
 	}
 

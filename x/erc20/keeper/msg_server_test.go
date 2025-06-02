@@ -134,7 +134,7 @@ func (suite *KeeperTestSuite) TestConvertERC20NativeERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -161,7 +161,7 @@ func (suite *KeeperTestSuite) TestConvertERC20NativeERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				balance[31] = uint8(1)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
@@ -187,7 +187,7 @@ func (suite *KeeperTestSuite) TestConvertERC20NativeERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -214,7 +214,7 @@ func (suite *KeeperTestSuite) TestConvertERC20NativeERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -424,7 +424,7 @@ func (suite *KeeperTestSuite) TestConvertNativeERC20ToEVMERC20() {
 					suite.network.App.BankKeeper, mockEVMKeeper, suite.network.App.StakingKeeper, &suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -451,7 +451,7 @@ func (suite *KeeperTestSuite) TestConvertNativeERC20ToEVMERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				balance[31] = uint8(1)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
@@ -477,7 +477,7 @@ func (suite *KeeperTestSuite) TestConvertNativeERC20ToEVMERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -504,7 +504,7 @@ func (suite *KeeperTestSuite) TestConvertNativeERC20ToEVMERC20() {
 					&suite.network.App.TransferKeeper,
 				)
 
-				existingAcc := &statedb.Account{Nonce: uint64(1), Balance: common.Big1}
+				existingAcc := &statedb.Account{Nonce: uint64(1)}
 				balance := make([]uint8, 32)
 				mockEVMKeeper.On("EstimateGasInternal", mock.Anything, mock.Anything, mock.Anything).Return(&evmtypes.EstimateGasResponse{Gas: uint64(200)}, nil)
 				mockEVMKeeper.On("CallEVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything,

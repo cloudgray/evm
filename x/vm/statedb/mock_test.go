@@ -37,6 +37,26 @@ func NewMockKeeper() *MockKeeper {
 	}
 }
 
+func (k MockKeeper) Transfer(_ sdk.Context, sender, recipient common.Address, amount *big.Int) error {
+	return nil
+}
+
+func (k MockKeeper) AddBalance(_ sdk.Context, addr common.Address, amount *big.Int) error {
+	return nil
+}
+
+func (k MockKeeper) SubBalance(_ sdk.Context, addr common.Address, amount *big.Int) error {
+	return nil
+}
+
+func (k MockKeeper) SetBalance(_ sdk.Context, addr common.Address, amount *big.Int) error {
+	return nil
+}
+
+func (k MockKeeper) GetBalance(_ sdk.Context, addr common.Address) *big.Int {
+	return nil
+}
+
 func (k MockKeeper) GetAccount(_ sdk.Context, addr common.Address) *statedb.Account {
 	acct, ok := k.accounts[addr]
 	if !ok {
