@@ -407,11 +407,16 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}
-	if amount.Sign() < 0 {
-		panic("negative amount")
-	}
+
 	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		err := s.keeper.AddBalance(ctx, addr, amount)
+		var err error
+
+		delta := new(big.Int).Abs(amount)
+		if amount.Sign() > 0 {
+			err = s.keeper.AddBalance(s.ctx, addr, delta)
+		} else {
+			err = s.keeper.SubBalance(ctx, addr, delta)
+		}
 		return nil, err
 	}); err != nil {
 		s.err = err
@@ -423,11 +428,15 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}
-	if amount.Sign() < 0 {
-		panic("negative amount")
-	}
 	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		err := s.keeper.SubBalance(ctx, addr, amount)
+		var err error
+
+		delta := new(big.Int).Abs(amount)
+		if amount.Sign() > 0 {
+			err = s.keeper.AddBalance(s.ctx, addr, delta)
+		} else {
+			err = s.keeper.SubBalance(ctx, addr, delta)
+		}
 		return nil, err
 	}); err != nil {
 		s.err = err
