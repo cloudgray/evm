@@ -179,22 +179,6 @@ func HandleGasError(ctx sdk.Context, contract *vm.Contract, initialGas storetype
 	}
 }
 
-// AddJournalEntries adds the balanceChange (if corresponds)
-func (p Precompile) AddJournalEntries(stateDB *statedb.StateDB, s Snapshot) error {
-	for _, entry := range p.journalEntries {
-		switch entry.Op {
-		case Sub:
-			// add the corresponding balance change to the journal
-			stateDB.SubBalance(entry.Account, entry.Amount)
-		case Add:
-			// add the corresponding balance change to the journal
-			stateDB.AddBalance(entry.Account, entry.Amount)
-		}
-	}
-
-	return nil
-}
-
 func (p Precompile) Address() common.Address {
 	return p.address
 }
