@@ -352,18 +352,25 @@ func (s *StateDB) setStateObject(object *stateObject) {
 // the writes will be revert when either the native action itself fail
 // or the wrapping message call reverted.
 func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, error)) ([]byte, error) {
-	snapshot := s.MultiStoreSnapshot()
-	eventManager := sdk.NewEventManager()
-	events := eventManager.Events()
-
-	bz, err := action(s.ctx.WithEventManager(eventManager))
+	ctx, err := s.GetCacheContext()
 	if err != nil {
-		s.RevertMultiStore(snapshot, eventManager.Events())
-		return nil, err
+		return nil, errorsmod.Wrap(err, "failed to get cache context")
 	}
 
-	s.journal.append(precompileCallChange{multiStore: snapshot, events: events})
-	return bz, nil
+	cms := ctx.MultiStore().CacheMultiStore()
+	events := ctx.EventManager().Events()
+
+	s.journal.append(precompileCallChange{
+		multiStore: cms,
+		events:     events,
+	})
+
+	bz, err := action(ctx)
+	if err != nil {
+		s.RevertMultiStore(cms, events)
+	}
+
+	return bz, err
 }
 
 /*
@@ -413,7 +420,7 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 
 		delta := new(big.Int).Abs(amount)
 		if amount.Sign() > 0 {
-			err = s.keeper.AddBalance(s.ctx, addr, delta)
+			err = s.keeper.AddBalance(ctx, addr, delta)
 		} else {
 			err = s.keeper.SubBalance(ctx, addr, delta)
 		}
@@ -433,7 +440,7 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 
 		delta := new(big.Int).Abs(amount)
 		if amount.Sign() > 0 {
-			err = s.keeper.AddBalance(s.ctx, addr, delta)
+			err = s.keeper.AddBalance(ctx, addr, delta)
 		} else {
 			err = s.keeper.SubBalance(ctx, addr, delta)
 		}
