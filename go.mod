@@ -263,6 +263,8 @@ require (
 )
 
 replace (
+	// use cosmossdk.io/store fork
+	cosmossdk.io/store => github.com/cloudgray/cosmos-sdk/store v0.0.0-20250605085150-1743f30fd961
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// use Cosmos geth fork

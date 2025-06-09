@@ -2613,7 +2613,7 @@ var _ = Describe("Calling distribution precompile from another contract", Ordere
 			Expect(accruedRewardsAmt.IsPositive()).To(BeTrue())
 
 			// set gas such that the internal keeper function called by the precompile fails out mid-execution
-			txArgs.GasLimit = 80_000
+			txArgs.GasLimit = 25_000
 			_, txRes, err := s.factory.CallContractAndCheckLogs(
 				s.keyring.GetPrivKey(0),
 				txArgs,

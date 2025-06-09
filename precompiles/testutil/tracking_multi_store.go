@@ -72,6 +72,13 @@ func (t *TrackingMultiStore) Write() {
 	t.Store.Write()
 }
 
+func (t *TrackingMultiStore) Copy() storetypes.CacheMultiStore {
+	cms := t.Store.Copy()
+	tms := &TrackingMultiStore{Store: cms, Writes: t.Writes, WriteTS: t.WriteTS}
+	t.HistoricalStores = append(t.HistoricalStores, tms)
+	return tms
+}
+
 func (t *TrackingMultiStore) CacheMultiStore() storetypes.CacheMultiStore {
 	cms := t.Store.CacheMultiStore()
 	tms := &TrackingMultiStore{Store: cms}

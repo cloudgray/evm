@@ -75,9 +75,13 @@ type StateDB struct {
 
 // New creates a new state from a given trie.
 func New(ctx sdk.Context, keeper Keeper, txConfig TxConfig) *StateDB {
+	cacheCtx, writeCache := ctx.CacheContext()
+
 	return &StateDB{
 		keeper:       keeper,
 		ctx:          ctx,
+		cacheCtx:     cacheCtx,
+		writeCache:   writeCache,
 		stateObjects: make(map[common.Address]*stateObject),
 		journal:      newJournal(),
 		accessList:   newAccessList(),
@@ -118,7 +122,7 @@ func (s *StateDB) MultiStoreSnapshot() storetypes.CacheMultiStore {
 	// the cacheCtx multi store is already a CacheMultiStore
 	// so we need to pass a copy of the current state of it
 	cms := s.cacheCtx.MultiStore().(storetypes.CacheMultiStore)
-	snapshot := cms.CacheMultiStore()
+	snapshot := cms.Copy()
 
 	return snapshot
 }
@@ -352,25 +356,15 @@ func (s *StateDB) setStateObject(object *stateObject) {
 // the writes will be revert when either the native action itself fail
 // or the wrapping message call reverted.
 func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, error)) ([]byte, error) {
-	ctx, err := s.GetCacheContext()
-	if err != nil {
-		return nil, errorsmod.Wrap(err, "failed to get cache context")
-	}
-
-	cms := ctx.MultiStore().CacheMultiStore()
-	events := ctx.EventManager().Events()
+	cms := s.MultiStoreSnapshot()
+	events := s.cacheCtx.EventManager().Events()
 
 	s.journal.append(precompileCallChange{
 		multiStore: cms,
 		events:     events,
 	})
 
-	bz, err := action(ctx)
-	if err != nil {
-		s.RevertMultiStore(cms, events)
-	}
-
-	return bz, err
+	return action(s.cacheCtx)
 }
 
 /*
@@ -401,6 +395,7 @@ func (s *StateDB) Transfer(sender, recipient common.Address, amount *big.Int) {
 	if amount.Sign() < 0 {
 		panic("negative amount")
 	}
+
 	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
 		err := s.keeper.Transfer(ctx, sender, recipient, amount)
 		return nil, err
@@ -440,9 +435,9 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 
 		delta := new(big.Int).Abs(amount)
 		if amount.Sign() > 0 {
-			err = s.keeper.AddBalance(ctx, addr, delta)
-		} else {
 			err = s.keeper.SubBalance(ctx, addr, delta)
+		} else {
+			err = s.keeper.AddBalance(ctx, addr, delta)
 		}
 		return nil, err
 	}); err != nil {
@@ -597,11 +592,6 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 // Commit writes the dirty states to keeper
 // the StateDB object should be discarded after committed.
 func (s *StateDB) Commit() error {
-	// if there's an error during the execution, revert.
-	if s.err != nil {
-		return s.err
-	}
-
 	// writeCache func will exist only when there's a call to a precompile.
 	// It applies all the store updates preformed by precompile calls.
 	if s.writeCache != nil {
@@ -614,10 +604,6 @@ func (s *StateDB) Commit() error {
 // This function is used before any precompile call to make sure the cacheCtx
 // is updated with the latest changes within the tx (StateDB's journal entries).
 func (s *StateDB) CommitWithCacheCtx() error {
-	if s.err != nil {
-		return s.err
-	}
-
 	return s.commitWithCtx(s.cacheCtx)
 }
 
