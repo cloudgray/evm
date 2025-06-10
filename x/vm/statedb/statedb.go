@@ -115,9 +115,10 @@ func (s *StateDB) MultiStoreSnapshot() storetypes.CacheMultiStore {
 			return s.ctx.MultiStore().CacheMultiStore()
 		}
 	}
-	// the cacheCtx multi store is already a CacheMultiStore
-	// so we need to pass a copy of the current state of it
-	cms := s.cacheCtx.MultiStore().(storetypes.CacheMultiStore)
+
+	// TODO: s.ctx is used instead of s.cacheCtx here
+	// Should check if this is correct.
+	cms := s.ctx.MultiStore().(storetypes.CacheMultiStore)
 	snapshot := cms.CacheMultiStore()
 
 	return snapshot
@@ -189,7 +190,12 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address) *big.Int {
-	return s.keeper.GetBalance(s.ctx, addr)
+	ctx, err := s.GetCacheContext()
+	if err != nil {
+		s.err = errorsmod.Wrap(err, "failed to get cache context")
+		return big.NewInt(0)
+	}
+	return s.keeper.GetBalance(ctx, addr)
 }
 
 // GetNonce returns the nonce of account, 0 if not exists.
@@ -357,7 +363,7 @@ func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, erro
 		return nil, errorsmod.Wrap(err, "failed to get cache context")
 	}
 
-	cms := ctx.MultiStore().CacheMultiStore()
+	cms := s.MultiStoreSnapshot()
 	events := ctx.EventManager().Events()
 
 	s.journal.append(precompileCallChange{
@@ -365,12 +371,7 @@ func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, erro
 		events:     events,
 	})
 
-	bz, err := action(ctx)
-	if err != nil {
-		s.RevertMultiStore(cms, events)
-	}
-
-	return bz, err
+	return action(ctx)
 }
 
 /*
@@ -614,6 +615,7 @@ func (s *StateDB) Commit() error {
 // This function is used before any precompile call to make sure the cacheCtx
 // is updated with the latest changes within the tx (StateDB's journal entries).
 func (s *StateDB) CommitWithCacheCtx() error {
+	// if there's an error during the execution, revert.
 	if s.err != nil {
 		return s.err
 	}
