@@ -75,13 +75,10 @@ type StateDB struct {
 
 // New creates a new state from a given trie.
 func New(ctx sdk.Context, keeper Keeper, txConfig TxConfig) *StateDB {
-	cacheCtx, writeCache := ctx.CacheContext()
 
 	return &StateDB{
 		keeper:       keeper,
 		ctx:          ctx,
-		cacheCtx:     cacheCtx,
-		writeCache:   writeCache,
 		stateObjects: make(map[common.Address]*stateObject),
 		journal:      newJournal(),
 		accessList:   newAccessList(),
@@ -193,7 +190,13 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address) *big.Int {
-	return s.keeper.GetBalance(s.ctx, addr)
+	ctx, err := s.GetCacheContext()
+	if err != nil {
+		s.err = errorsmod.Wrap(err, "failed to get cache context")
+		return big.NewInt(0)
+	}
+
+	return s.keeper.GetBalance(ctx, addr)
 }
 
 // GetNonce returns the nonce of account, 0 if not exists.
@@ -356,15 +359,20 @@ func (s *StateDB) setStateObject(object *stateObject) {
 // the writes will be revert when either the native action itself fail
 // or the wrapping message call reverted.
 func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, error)) ([]byte, error) {
+	ctx, err := s.GetCacheContext()
+	if err != nil {
+		return nil, errorsmod.Wrap(err, "failed to get cache context")
+	}
+
 	cms := s.MultiStoreSnapshot()
-	events := s.cacheCtx.EventManager().Events()
+	events := ctx.EventManager().Events()
 
 	s.journal.append(precompileCallChange{
 		multiStore: cms,
 		events:     events,
 	})
 
-	return action(s.cacheCtx)
+	return action(ctx)
 }
 
 /*
