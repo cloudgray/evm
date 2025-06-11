@@ -1808,6 +1808,50 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)))
 				})
 
+				It("should revert the changes and NOT delegate - successful tx", func() {
+					delegationAmount := math.NewInt(10)
+
+					callArgs := factory.CallArgs{
+						ContractABI: stakingReverterContract.ABI,
+						MethodName:  "callPrecompileAfterRevert",
+						Args: []interface{}{
+							big.NewInt(5), s.network.GetValidators()[0].OperatorAddress,
+						},
+					}
+
+					delegateCheck := passCheck.WithExpEvents(staking.EventTypeDelegate)
+					// Tx should be successful, but no state changes happened
+					res, _, err := s.factory.CallContractAndCheckLogs(
+						s.keyring.GetPrivKey(0),
+						evmtypes.EvmTxArgs{
+							To:       &stkReverterAddr,
+							GasPrice: gasPrice.BigInt(),
+						},
+						callArgs,
+						delegateCheck,
+					)
+					Expect(err).To(BeNil(), "error while calling the smart contract: %v", err)
+					Expect(s.network.NextBlock()).To(BeNil())
+
+					fees := gasPrice.MulRaw(res.GasUsed)
+
+					// contract balance should be deducted by delegation amount
+					balRes, err := s.grpcHandler.GetBalanceFromBank(stkReverterAddr.Bytes(), s.bondDenom)
+					Expect(err).To(BeNil())
+					contractFinalBalance := balRes.Balance
+					Expect(contractFinalBalance.Amount).To(Equal(contractInitialBalance.Amount.Sub(delegationAmount)))
+
+					// delegation should be created but reverted because of wrong snapshot
+					_, err = s.grpcHandler.GetDelegation(sdk.AccAddress(stkReverterAddr.Bytes()).String(), s.network.GetValidators()[0].OperatorAddress)
+					Expect(err).To(BeNil())
+
+					// delegation amount and fees deducted on tx sender
+					balRes, err = s.grpcHandler.GetBalanceFromBank(s.keyring.GetAccAddr(0), s.bondDenom)
+					Expect(err).To(BeNil())
+					txSenderFinalBal := balRes.Balance
+					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees).Sub(delegationAmount)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
+				})
+
 				It("should revert the changes and NOT delegate - failed tx - max precompile calls reached", func() {
 					callArgs := factory.CallArgs{
 						ContractABI: stakingReverterContract.ABI,
