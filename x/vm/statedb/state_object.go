@@ -7,10 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/cosmos/evm/x/vm/types"
-
-	storetypes "cosmossdk.io/store/types"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Account is the Ethereum consensus representation of accounts.
@@ -94,16 +90,6 @@ func (s *stateObject) empty() bool {
 
 func (s *stateObject) markSuicided() {
 	s.suicided = true
-}
-
-// AddPrecompileFn appends to the journal an entry
-// with a snapshot of the multi-store and events
-// previous to the precompile call
-func (s *stateObject) AddPrecompileFn(cms storetypes.CacheMultiStore, events sdk.Events) {
-	s.db.journal.append(precompileCallChange{
-		multiStore: cms,
-		events:     events,
-	})
 }
 
 //

@@ -78,16 +78,11 @@ func (p Precompile) RunSetup(
 		return sdk.Context{}, nil, s, nil, uint64(0), nil, errors.New(ErrNotRunInEvm)
 	}
 
-	// get the stateDB cache ctx
-	ctx, err = stateDB.GetCacheContext()
+	// Get stateDB cache ctx and take a snapshot of the current state before any changes
+	ctx, err = stateDB.SnapshotCacheMultiStore()
 	if err != nil {
 		return sdk.Context{}, nil, s, nil, uint64(0), nil, err
 	}
-
-	// take a snapshot of the current state before any changes
-	// to be able to revert the changes
-	s.MultiStore = stateDB.MultiStoreSnapshot()
-	s.Events = ctx.EventManager().Events()
 
 	// add precompileCall entry on the stateDB journal
 	// this allows to revert the changes within an evm tx

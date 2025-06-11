@@ -144,20 +144,18 @@ func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, readOnly bool) (bz [
 	// It avoids panics and returns the out of gas error so the EVM can continue gracefully.
 	defer cmn.HandleGasError(ctx, contract, initialGas, &err)()
 
-	return stateDB.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		bz, err = p.HandleMethod(ctx, contract, stateDB, method, args)
-		if err != nil {
-			return nil, err
-		}
+	bz, err = p.HandleMethod(ctx, contract, stateDB, method, args)
+	if err != nil {
+		return nil, err
+	}
 
-		cost := ctx.GasMeter().GasConsumed() - initialGas
+	cost := ctx.GasMeter().GasConsumed() - initialGas
 
-		if !contract.UseGas(cost) {
-			return nil, vm.ErrOutOfGas
-		}
+	if !contract.UseGas(cost) {
+		return nil, vm.ErrOutOfGas
+	}
 
-		return bz, nil
-	})
+	return bz, nil
 }
 
 // IsTransaction checks if the given method name corresponds to a transaction or query.

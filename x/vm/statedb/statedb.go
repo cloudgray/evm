@@ -124,6 +124,25 @@ func (s *StateDB) MultiStoreSnapshot() storetypes.CacheMultiStore {
 	return snapshot
 }
 
+// SnapshotCacheMultiStore returns a cache context with a snapshot of the current
+// multi store and events.
+func (s *StateDB) SnapshotCacheMultiStore() (sdk.Context, error) {
+	ctx, err := s.GetCacheContext()
+	if err != nil {
+		return ctx, errorsmod.Wrap(err, "failed to get snapshot cached multi store")
+	}
+
+	cms := s.MultiStoreSnapshot()
+	events := ctx.EventManager().Events()
+
+	s.journal.append(multiStoreChange{
+		multiStore: cms,
+		events:     events,
+	})
+
+	return ctx, nil
+}
+
 func (s *StateDB) RevertMultiStore(cms storetypes.CacheMultiStore, events sdk.Events) {
 	s.cacheCtx = s.cacheCtx.WithMultiStore(cms)
 	s.writeCache = func() {
@@ -355,26 +374,6 @@ func (s *StateDB) setStateObject(object *stateObject) {
 	s.stateObjects[object.Address()] = object
 }
 
-// ExecuteNativeAction executes native action in isolate,
-// the writes will be revert when either the native action itself fail
-// or the wrapping message call reverted.
-func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, error)) ([]byte, error) {
-	ctx, err := s.GetCacheContext()
-	if err != nil {
-		return nil, errorsmod.Wrap(err, "failed to get cache context")
-	}
-
-	cms := s.MultiStoreSnapshot()
-	events := ctx.EventManager().Events()
-
-	s.journal.append(precompileCallChange{
-		multiStore: cms,
-		events:     events,
-	})
-
-	return action(ctx)
-}
-
 /*
  * SETTERS
  */
@@ -383,11 +382,6 @@ func (s *StateDB) ExecuteNativeAction(action func(ctx sdk.Context) ([]byte, erro
 // with a snapshot of the multi-store and events previous
 // to the precompile call.
 func (s *StateDB) AddPrecompileFn(addr common.Address, cms storetypes.CacheMultiStore, events sdk.Events) error {
-	stateObject := s.getOrNewStateObject(addr)
-	if stateObject == nil {
-		return fmt.Errorf("could not add precompile call to address %s. State object not found", addr)
-	}
-	stateObject.AddPrecompileFn(cms, events)
 	s.precompileCallsCounter++
 	if s.precompileCallsCounter > types.MaxPrecompileCalls {
 		return fmt.Errorf("max calls to precompiles (%d) reached", types.MaxPrecompileCalls)
@@ -404,11 +398,12 @@ func (s *StateDB) Transfer(sender, recipient common.Address, amount *big.Int) {
 		panic("negative amount")
 	}
 
-	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		err := s.keeper.Transfer(ctx, sender, recipient, amount)
-		return nil, err
-	}); err != nil {
+	// Get stateDB cache ctx and take a snapshot of the current state before any changes
+	ctx, err := s.SnapshotCacheMultiStore()
+	if err != nil {
 		s.err = err
+	} else {
+		s.err = s.keeper.Transfer(ctx, sender, recipient, amount)
 	}
 }
 
@@ -418,18 +413,16 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 		return
 	}
 
-	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		var err error
-
+	ctx, err := s.SnapshotCacheMultiStore()
+	if err != nil {
+		s.err = err
+	} else {
 		delta := new(big.Int).Abs(amount)
 		if amount.Sign() > 0 {
-			err = s.keeper.AddBalance(ctx, addr, delta)
+			s.err = s.keeper.AddBalance(ctx, addr, delta)
 		} else {
-			err = s.keeper.SubBalance(ctx, addr, delta)
+			s.err = s.keeper.SubBalance(ctx, addr, delta)
 		}
-		return nil, err
-	}); err != nil {
-		s.err = err
 	}
 }
 
@@ -438,28 +431,28 @@ func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 	if amount.Sign() == 0 {
 		return
 	}
-	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		var err error
 
+	ctx, err := s.SnapshotCacheMultiStore()
+	if err != nil {
+		s.err = err
+		return
+	} else {
 		delta := new(big.Int).Abs(amount)
 		if amount.Sign() > 0 {
-			err = s.keeper.SubBalance(ctx, addr, delta)
+			s.err = s.keeper.SubBalance(ctx, addr, delta)
 		} else {
-			err = s.keeper.AddBalance(ctx, addr, delta)
+			s.err = s.keeper.AddBalance(ctx, addr, delta)
 		}
-		return nil, err
-	}); err != nil {
-		s.err = err
 	}
 }
 
 // SetBalance is called by state override
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
-	if _, err := s.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		err := s.keeper.SetBalance(ctx, addr, amount)
-		return nil, err
-	}); err != nil {
+	ctx, err := s.SnapshotCacheMultiStore()
+	if err != nil {
 		s.err = err
+	} else {
+		s.err = s.keeper.SetBalance(ctx, addr, amount)
 	}
 }
 
@@ -600,6 +593,10 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 // Commit writes the dirty states to keeper
 // the StateDB object should be discarded after committed.
 func (s *StateDB) Commit() error {
+	if s.err != nil {
+		return s.err
+	}
+
 	// writeCache func will exist only when there's a call to a precompile.
 	// It applies all the store updates preformed by precompile calls.
 	if s.writeCache != nil {
@@ -612,6 +609,9 @@ func (s *StateDB) Commit() error {
 // This function is used before any precompile call to make sure the cacheCtx
 // is updated with the latest changes within the tx (StateDB's journal entries).
 func (s *StateDB) CommitWithCacheCtx() error {
+	if s.err != nil {
+		return s.err
+	}
 	return s.commitWithCtx(s.cacheCtx)
 }
 

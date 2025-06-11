@@ -14,7 +14,6 @@ import (
 	erc20types "github.com/cosmos/evm/x/erc20/types"
 	transferkeeper "github.com/cosmos/evm/x/ibc/transfer/keeper"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 )
 
@@ -117,31 +116,29 @@ func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, readOnly bool) (bz [
 	// the EVM can continue gracefully.
 	defer cmn.HandleGasError(ctx, contract, initialGas, &err)()
 
-	return stateDB.ExecuteNativeAction(func(ctx sdk.Context) ([]byte, error) {
-		switch {
-		case method.Type == abi.Fallback,
-			method.Type == abi.Receive,
-			method.Name == DepositMethod:
-			bz, err = p.Deposit(ctx, contract, stateDB)
-		case method.Name == WithdrawMethod:
-			bz, err = p.Withdraw(ctx, contract, stateDB, args)
-		default:
-			// ERC20 transactions and queries
-			bz, err = p.Precompile.HandleMethod(ctx, contract, stateDB, method, args)
-		}
+	switch {
+	case method.Type == abi.Fallback,
+		method.Type == abi.Receive,
+		method.Name == DepositMethod:
+		bz, err = p.Deposit(ctx, contract, stateDB)
+	case method.Name == WithdrawMethod:
+		bz, err = p.Withdraw(ctx, contract, stateDB, args)
+	default:
+		// ERC20 transactions and queries
+		bz, err = p.Precompile.HandleMethod(ctx, contract, stateDB, method, args)
+	}
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		cost := ctx.GasMeter().GasConsumed() - initialGas
+	cost := ctx.GasMeter().GasConsumed() - initialGas
 
-		if !contract.UseGas(cost) {
-			return nil, vm.ErrOutOfGas
-		}
+	if !contract.UseGas(cost) {
+		return nil, vm.ErrOutOfGas
+	}
 
-		return bz, nil
-	})
+	return bz, nil
 }
 
 // IsTransaction returns true if the given method name correspond to a

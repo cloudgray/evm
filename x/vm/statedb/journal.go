@@ -18,7 +18,6 @@ package statedb
 
 import (
 	"bytes"
-	"math/big"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -108,11 +107,6 @@ type (
 		prev    bool // whether account had already suicided
 	}
 
-	// Changes to individual accounts.
-	balanceChange struct {
-		account *common.Address
-		prev    *big.Int
-	}
 	nonceChange struct {
 		account *common.Address
 		prev    uint64
@@ -140,7 +134,7 @@ type (
 		address *common.Address
 		slot    *common.Hash
 	}
-	precompileCallChange struct {
+	multiStoreChange struct {
 		multiStore storetypes.CacheMultiStore
 		events     sdk.Events
 	}
@@ -157,16 +151,15 @@ var (
 	_ JournalEntry = addLogChange{}
 	_ JournalEntry = accessListAddAccountChange{}
 	_ JournalEntry = accessListAddSlotChange{}
-	_ JournalEntry = precompileCallChange{}
 )
 
-func (pc precompileCallChange) Revert(s *StateDB) {
+func (pc multiStoreChange) Revert(s *StateDB) {
 	// rollback multi store from cache ctx to the previous
 	// state stored in the snapshot
 	s.RevertMultiStore(pc.multiStore, pc.events)
 }
 
-func (pc precompileCallChange) Dirtied() *common.Address {
+func (pc multiStoreChange) Dirtied() *common.Address {
 	return nil
 }
 
