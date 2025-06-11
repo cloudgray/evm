@@ -1978,6 +1978,46 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 					bondedTokensPoolFinalBalance := balRes.Balance
 					Expect(bondedTokensPoolFinalBalance.Amount).To(Equal(bondedTokensPoolInitialBalance.Amount))
 				})
+
+				It("should NOT delegate and update balances accordingly - internal transfer to tokens pool", func() {
+					args.MethodName = "testDelegateWithTransfer"
+					args.Args = []interface{}{
+						common.BytesToAddress(bondedTokensPoolAccAddr),
+						s.keyring.GetAddr(0), valAddr.String(), true, true,
+					}
+
+					txArgs.To = &contractTwoAddr
+					txArgs.Amount = delAmt.BigInt()
+
+					delegateCheck := passCheck.WithExpEvents(staking.EventTypeDelegate)
+
+					_, _, err = s.factory.CallContractAndCheckLogs(
+						s.keyring.GetPrivKey(0),
+						txArgs,
+						args,
+						delegateCheck,
+					)
+					Expect(err).To(BeNil(), "error while calling the smart contract: %v", err)
+					Expect(s.network.NextBlock()).To(BeNil())
+
+					// contract balance should remain unchanged
+					balRes, err := s.grpcHandler.GetBalanceFromBank(contractTwoAddr.Bytes(), s.bondDenom)
+					Expect(err).To(BeNil())
+					contractFinalBal := balRes.Balance
+					Expect(contractFinalBal.Amount).To(Equal(contractInitialBalance.Amount.Sub(math.NewInt(30))))
+
+					// check the bondedTokenPool should change to initial balance + delegated amount
+					balRes, err = s.grpcHandler.GetBalanceFromBank(bondedTokensPoolAccAddr, s.bondDenom)
+					Expect(err).To(BeNil())
+					bondedTokensPoolFinalBalance := balRes.Balance
+
+					// This check proves that balance of bonded_tokens_pool account is overwritten by value transter in contract call
+					Expect(bondedTokensPoolFinalBalance.Amount).To(Equal(bondedTokensPoolInitialBalance.Amount.Add(math.NewInt(30))))
+
+					// If bonded_tokens_pool account is not registered as BlockedAddress for bank keeper,
+					// the check below is commented out because the bonded tokens pool balance
+					// Expect(bondedTokensPoolFinalBalance.Amount).To(Equal(bondedTokensPoolInitialBalance.Amount.Add(delAmt).Add(math.NewInt(30))), "expected bonded tokens pool balance to be updated")
+				})
 			})
 
 			It("should not delegate when validator does not exist", func() {
