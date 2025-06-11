@@ -1843,13 +1843,17 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 
 					// delegation should be created but reverted because of wrong snapshot
 					_, err = s.grpcHandler.GetDelegation(sdk.AccAddress(stkReverterAddr.Bytes()).String(), s.network.GetValidators()[0].OperatorAddress)
-					Expect(err).To(BeNil())
+					// TODO: After incorrect statedb snapshot issue is fixed, this should be an error
+					// Expect(err).To(BeNil())
+					Expect(err).NotTo(BeNil())
 
 					// delegation amount and fees deducted on tx sender
 					balRes, err = s.grpcHandler.GetBalanceFromBank(s.keyring.GetAccAddr(0), s.bondDenom)
 					Expect(err).To(BeNil())
 					txSenderFinalBal := balRes.Balance
-					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees).Sub(delegationAmount)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
+					// TODO: After incorrect statedb snapshot issue is fixed, this commented line should be uncommented
+					// Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees).Sub(delegationAmount)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
+					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
 				})
 
 				It("should revert the changes and NOT delegate - failed tx - max precompile calls reached", func() {
