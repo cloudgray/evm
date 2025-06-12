@@ -140,10 +140,12 @@ func (md MonoDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, ne
 		// using a wrapper of the bank keeper as a dependency to scale all
 		// balances to 18 decimals.
 		account := md.evmKeeper.GetAccount(ctx, fromAddr)
+		balance := md.evmKeeper.GetBalance(ctx, fromAddr)
 		if err := VerifyAccountBalance(
 			ctx,
 			md.accountKeeper,
 			account,
+			balance,
 			fromAddr,
 			txData,
 		); err != nil {

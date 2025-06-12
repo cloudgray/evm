@@ -37,26 +37,28 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 	testCases := []struct {
 		name                   string
 		expectedError          error
-		generateAccountAndArgs func() (*statedb.Account, evmtypes.EvmTxArgs)
+		generateAccountAndArgs func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs)
 	}{
 		{
 			name:          "fail: sender is not EOA",
 			expectedError: errortypes.ErrInvalidType,
-			generateAccountAndArgs: func() (*statedb.Account, evmtypes.EvmTxArgs) {
+			generateAccountAndArgs: func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs) {
 				statedbAccount := getDefaultStateDBAccount(unitNetwork, senderKey.Addr)
+				accountBalance := getAccountBalance(unitNetwork, senderKey.Addr)
 				txArgs, err := txFactory.GenerateDefaultTxTypeArgs(senderKey.Addr, suite.ethTxType)
 				suite.Require().NoError(err)
 
 				statedbAccount.CodeHash = []byte("test")
 				suite.Require().NoError(err)
-				return statedbAccount, txArgs
+				return statedbAccount, accountBalance, txArgs
 			},
 		},
 		{
 			name:          "fail: sender balance is lower than the transaction cost",
 			expectedError: errortypes.ErrInsufficientFunds,
-			generateAccountAndArgs: func() (*statedb.Account, evmtypes.EvmTxArgs) {
+			generateAccountAndArgs: func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs) {
 				statedbAccount := getDefaultStateDBAccount(unitNetwork, senderKey.Addr)
+				accountBalance := getAccountBalance(unitNetwork, senderKey.Addr)
 				txArgs, err := txFactory.GenerateDefaultTxTypeArgs(senderKey.Addr, suite.ethTxType)
 				suite.Require().NoError(err)
 
@@ -68,14 +70,15 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 				suite.Require().True(ok)
 				invalidAmount := balance.Add(math.NewInt(100))
 				txArgs.Amount = invalidAmount.BigInt()
-				return statedbAccount, txArgs
+				return statedbAccount, accountBalance, txArgs
 			},
 		},
 		{
 			name:          "fail: tx cost is negative",
 			expectedError: errortypes.ErrInvalidCoins,
-			generateAccountAndArgs: func() (*statedb.Account, evmtypes.EvmTxArgs) {
+			generateAccountAndArgs: func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs) {
 				statedbAccount := getDefaultStateDBAccount(unitNetwork, senderKey.Addr)
+				accountBalance := getAccountBalance(unitNetwork, senderKey.Addr)
 				txArgs, err := txFactory.GenerateDefaultTxTypeArgs(senderKey.Addr, suite.ethTxType)
 				suite.Require().NoError(err)
 
@@ -83,26 +86,27 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 				// it has to be bigger than the fee for the full cost to be negative
 				invalidAmount := big.NewInt(-1e18)
 				txArgs.Amount = invalidAmount
-				return statedbAccount, txArgs
+				return statedbAccount, accountBalance, txArgs
 			},
 		},
 		{
 			name:          "success: tx is successful and account is created if its nil",
 			expectedError: errortypes.ErrInsufficientFunds,
-			generateAccountAndArgs: func() (*statedb.Account, evmtypes.EvmTxArgs) {
+			generateAccountAndArgs: func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs) {
 				txArgs, err := txFactory.GenerateDefaultTxTypeArgs(senderKey.Addr, suite.ethTxType)
 				suite.Require().NoError(err)
-				return nil, txArgs
+				return nil, big.NewInt(0), txArgs
 			},
 		},
 		{
 			name:          "success: tx is successful if account is EOA and exists",
 			expectedError: nil,
-			generateAccountAndArgs: func() (*statedb.Account, evmtypes.EvmTxArgs) {
+			generateAccountAndArgs: func() (*statedb.Account, *big.Int, evmtypes.EvmTxArgs) {
 				statedbAccount := getDefaultStateDBAccount(unitNetwork, senderKey.Addr)
+				accountBalance := getAccountBalance(unitNetwork, senderKey.Addr)
 				txArgs, err := txFactory.GenerateDefaultTxTypeArgs(senderKey.Addr, suite.ethTxType)
 				suite.Require().NoError(err)
-				return statedbAccount, txArgs
+				return statedbAccount, accountBalance, txArgs
 			},
 		},
 	}
@@ -110,7 +114,8 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("%v_%v_%v", evmtypes.GetTxTypeName(suite.ethTxType), suite.chainID, tc.name), func() {
 			// Perform test logic
-			statedbAccount, txArgs := tc.generateAccountAndArgs()
+			statedbAccount, accountBalance, txArgs := tc.generateAccountAndArgs()
+
 			txData, err := txArgs.ToTxData()
 			suite.Require().NoError(err)
 
@@ -119,6 +124,7 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 				unitNetwork.GetContext(),
 				unitNetwork.App.AccountKeeper,
 				statedbAccount,
+				accountBalance,
 				senderKey.Addr,
 				txData,
 			)
@@ -144,4 +150,9 @@ func (suite *EvmAnteTestSuite) TestVerifyAccountBalance() {
 func getDefaultStateDBAccount(unitNetwork *network.UnitTestNetwork, addr common.Address) *statedb.Account {
 	statedb := unitNetwork.GetStateDB()
 	return statedb.Keeper().GetAccount(unitNetwork.GetContext(), addr)
+}
+
+func getAccountBalance(unitNetwork *network.UnitTestNetwork, addr common.Address) *big.Int {
+	statedb := unitNetwork.GetStateDB()
+	return statedb.Keeper().GetBalance(unitNetwork.GetContext(), addr)
 }
