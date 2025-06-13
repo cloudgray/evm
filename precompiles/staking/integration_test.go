@@ -1851,9 +1851,7 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 					balRes, err = s.grpcHandler.GetBalanceFromBank(s.keyring.GetAccAddr(0), s.bondDenom)
 					Expect(err).To(BeNil())
 					txSenderFinalBal := balRes.Balance
-					// TODO: After incorrect statedb snapshot issue is fixed, this commented line should be uncommented
-					// Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees).Sub(delegationAmount)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
-					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)), "expected tx sender balance to be deducted by fees and 10 tokens transferred to the contract")
+					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)), "expected tx sender balance to be deducted by fees")
 				})
 
 				It("should revert the changes and NOT delegate - failed tx - max precompile calls reached", func() {
