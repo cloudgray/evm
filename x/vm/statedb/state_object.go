@@ -47,9 +47,6 @@ func (s Storage) SortedKeys() []common.Hash {
 type stateObject struct {
 	db *StateDB
 
-	// to check the dirtiness of the account ,it's nil if the account is newly created
-	originalAccount *Account
-
 	account Account
 	code    []byte
 
@@ -65,21 +62,17 @@ type stateObject struct {
 }
 
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, origAccount *Account) *stateObject {
-	var account Account
-	if origAccount == nil {
-		account = *(NewEmptyAccount())
-	} else {
-		account = *origAccount
+func newObject(db *StateDB, address common.Address, account Account) *stateObject {
+	if account.CodeHash == nil {
+		account.CodeHash = types.EmptyCodeHash
 	}
 
 	return &stateObject{
-		db:              db,
-		address:         address,
-		originalAccount: origAccount,
-		account:         account,
-		originStorage:   make(Storage),
-		dirtyStorage:    make(Storage),
+		db:            db,
+		address:       address,
+		account:       account,
+		originStorage: make(Storage),
+		dirtyStorage:  make(Storage),
 	}
 }
 
