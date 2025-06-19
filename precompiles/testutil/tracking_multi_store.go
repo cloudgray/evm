@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/store/cachemulti"
 	storetypes "cosmossdk.io/store/types"
 )
 
@@ -15,7 +14,7 @@ import (
 // well as the branches created via CacheMultiStore()
 type TrackingMultiStore struct {
 	// Store is the underlying CacheMultiStore being wrapped and tracked.
-	cachemulti.Store
+	Store storetypes.CacheMultiStore
 	// Writes is the number of times Write() has been called on this store.
 	Writes int
 	// WriteTS is the timestamp of the last Write() call, used to determine write order.
@@ -74,17 +73,17 @@ func (t *TrackingMultiStore) Write() {
 }
 
 func (t *TrackingMultiStore) CacheMultiStore() storetypes.CacheMultiStore {
-	cms := t.Store.CacheMultiStore().(cachemulti.Store)
+	cms := t.Store.CacheMultiStore()
 	tms := &TrackingMultiStore{Store: cms}
 	t.HistoricalStores = append(t.HistoricalStores, tms)
 	return tms
 }
 
-func (t *TrackingMultiStore) Clone() TrackingMultiStore {
+func (t *TrackingMultiStore) Clone() storetypes.CacheMultiStore {
 	// Cloning a TrackingMultiStore should not track writes, so we create a new instance
 	// without the historical stores and reset the write count.
 
-	clone := TrackingMultiStore{
+	clone := &TrackingMultiStore{
 		Store:            t.Store.Clone(),
 		Writes:           0,
 		WriteTS:          nil,

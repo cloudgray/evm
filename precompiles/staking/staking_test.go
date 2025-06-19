@@ -19,7 +19,7 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"cosmossdk.io/math"
-	"cosmossdk.io/store/cachemulti"
+	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -738,7 +738,7 @@ func (s *PrecompileTestSuite) TestCMS() {
 			ctx = s.network.GetContext().WithBlockTime(time.Now())
 
 			cms := &testutil.TrackingMultiStore{
-				Store:            s.network.App.BaseApp.CommitMultiStore().CacheMultiStore().(cachemulti.Store),
+				Store:            s.network.App.BaseApp.CommitMultiStore().CacheMultiStore().(storetypes.CacheMultiStore),
 				Writes:           0,
 				HistoricalStores: nil,
 			}

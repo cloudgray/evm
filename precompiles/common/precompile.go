@@ -11,7 +11,6 @@ import (
 
 	"github.com/cosmos/evm/x/vm/statedb"
 
-	"cosmossdk.io/store/cachemulti"
 	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -50,7 +49,7 @@ func NewBalanceChangeEntry(acc common.Address, amt *uint256.Int, op Operation) B
 // This is needed to allow us to revert the changes
 // during the EVM execution
 type Snapshot struct {
-	MultiStore cachemulti.Store
+	MultiStore storetypes.CacheMultiStore
 	Events     sdk.Events
 }
 

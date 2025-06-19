@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"sort"
 
-	"cosmossdk.io/store/cachemulti"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 
@@ -145,7 +145,7 @@ type (
 		slot    *common.Hash
 	}
 	precompileCallChange struct {
-		multiStore cachemulti.Store
+		multiStore storetypes.CacheMultiStore
 		events     sdk.Events
 	}
 	createContractChange struct {

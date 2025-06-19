@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"cosmossdk.io/store/cachemulti"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 
@@ -140,7 +140,7 @@ func (s *stateObject) SetBalance(amount *uint256.Int) uint256.Int {
 // AddPrecompileFn appends to the journal an entry
 // with a snapshot of the multi-store and events
 // previous to the precompile call
-func (s *stateObject) AddPrecompileFn(cms cachemulti.Store, events sdk.Events) {
+func (s *stateObject) AddPrecompileFn(cms storetypes.CacheMultiStore, events sdk.Events) {
 	s.db.journal.append(precompileCallChange{
 		multiStore: cms,
 		events:     events,
