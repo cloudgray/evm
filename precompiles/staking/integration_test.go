@@ -1841,11 +1841,11 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 					contractFinalBalance := balRes.Balance
 					Expect(contractFinalBalance.Amount).To(Equal(contractInitialBalance.Amount.Sub(delegationAmount)))
 
-					// delegation should be created but reverted because of wrong snapshot
-					_, err = s.grpcHandler.GetDelegation(sdk.AccAddress(stkReverterAddr.Bytes()).String(), s.network.GetValidators()[0].OperatorAddress)
-					// TODO: After incorrect statedb snapshot issue is fixed, this should be an error
-					// Expect(err).To(BeNil())
-					Expect(err).NotTo(BeNil())
+					// delegation should have been created
+					qRes, err := s.grpcHandler.GetDelegation(sdk.AccAddress(stkReverterAddr.Bytes()).String(), s.network.GetValidators()[0].OperatorAddress)
+					Expect(err).To(BeNil())
+					Expect(qRes.DelegationResponse.Delegation.GetDelegatorAddr()).To(Equal(sdk.AccAddress(stkReverterAddr.Bytes()).String()), "expected delegator address is equal to contract address")
+					Expect(qRes.DelegationResponse.Delegation.GetShares().BigInt()).To(Equal(delegationAmount.BigInt()), "expected different delegation shares")
 
 					// delegation amount and fees deducted on tx sender
 					balRes, err = s.grpcHandler.GetBalanceFromBank(s.keyring.GetAccAddr(0), s.bondDenom)

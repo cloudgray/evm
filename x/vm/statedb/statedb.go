@@ -21,7 +21,7 @@ import (
 	"github.com/cosmos/evm/x/vm/types"
 
 	errorsmod "cosmossdk.io/errors"
-	storetypes "cosmossdk.io/store/types"
+	"cosmossdk.io/store/cachemulti"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -164,29 +164,26 @@ func (s *StateDB) GetCacheContext() (sdk.Context, error) {
 }
 
 // MultiStoreSnapshot returns a copy of the stateDB CacheMultiStore.
-func (s *StateDB) MultiStoreSnapshot() storetypes.CacheMultiStore {
+func (s *StateDB) MultiStoreSnapshot() cachemulti.Store {
 	if s.writeCache == nil {
 		err := s.cache()
 		if err != nil {
-			return s.ctx.MultiStore().CacheMultiStore()
+			return s.ctx.MultiStore().CacheWrap().(cachemulti.Store)
 		}
 	}
-	// the cacheCtx multi store is already a CacheMultiStore
-	// so we need to pass a copy of the current state of it
-	cms := s.cacheCtx.MultiStore().(storetypes.CacheMultiStore)
-	snapshot := cms.CacheMultiStore()
+
+	var snapshot cachemulti.Store
+	if cms, ok := s.cacheCtx.MultiStore().(cachemulti.Store); ok {
+		snapshot = cms.Clone()
+	} else {
+		snapshot = s.cacheCtx.MultiStore().CacheWrap().(cachemulti.Store)
+	}
 
 	return snapshot
 }
 
-func (s *StateDB) RevertMultiStore(cms storetypes.CacheMultiStore, events sdk.Events) {
-	s.cacheCtx = s.cacheCtx.WithMultiStore(cms)
-	s.writeCache = func() {
-		// rollback the events to the ones
-		// on the snapshot
-		s.ctx.EventManager().EmitEvents(events)
-		cms.Write()
-	}
+func (s *StateDB) RevertMultiStore(cms cachemulti.Store, events sdk.Events) {
+	s.cacheCtx.MultiStore().(cachemulti.Store).Restore(cms)
 }
 
 // cache creates the stateDB cache context
@@ -409,7 +406,7 @@ func (s *StateDB) setStateObject(object *stateObject) {
 // AddPrecompileFn adds a precompileCall journal entry
 // with a snapshot of the multi-store and events previous
 // to the precompile call.
-func (s *StateDB) AddPrecompileFn(addr common.Address, cms storetypes.CacheMultiStore, events sdk.Events) error {
+func (s *StateDB) AddPrecompileFn(addr common.Address, cms cachemulti.Store, events sdk.Events) error {
 	stateObject := s.getOrNewStateObject(addr)
 	if stateObject == nil {
 		return fmt.Errorf("could not add precompile call to address %s. State object not found", addr)
