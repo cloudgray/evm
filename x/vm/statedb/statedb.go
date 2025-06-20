@@ -171,14 +171,10 @@ func (s *StateDB) MultiStoreSnapshot() storetypes.CacheMultiStore {
 			return s.ctx.MultiStore().CacheWrap().(storetypes.CacheMultiStore)
 		}
 	}
-
-	var snapshot storetypes.CacheMultiStore
-	if cms, ok := s.cacheCtx.MultiStore().(storetypes.CacheMultiStore); ok {
-		snapshot = cms.Clone()
-	} else {
-		snapshot = s.cacheCtx.MultiStore().CacheWrap().(storetypes.CacheMultiStore)
-	}
-
+	// the cacheCtx multi store is already a CacheMultiStore
+	// so we need to pass a copy of the current state of it
+	cms := s.cacheCtx.MultiStore().(storetypes.CacheMultiStore)
+	snapshot := cms.Clone()
 	return snapshot
 }
 
