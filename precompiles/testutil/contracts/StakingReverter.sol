@@ -35,6 +35,21 @@ contract StakingReverter {
         STAKING_CONTRACT.delegate(address(this), validatorAddress, 10);
     }
 
+    // NOTE: This functions is for testing statedb revert is correctly handled
+    function callPrecompileAfterRevert2(uint numTimes, string calldata validatorAddress) external {
+        STAKING_CONTRACT.delegate(address(this), validatorAddress, 10);
+
+        for (uint i = 0; i < numTimes; i++) {
+            try
+            StakingReverter(address(this)).performDelegation(
+                validatorAddress
+            )
+            {} catch {}
+        }
+
+        STAKING_CONTRACT.delegate(address(this), validatorAddress, 10);
+    }
+
     function multipleDelegations(
         uint numTimes,
         string calldata validatorAddress

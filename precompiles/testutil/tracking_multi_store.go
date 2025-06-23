@@ -79,17 +79,18 @@ func (t *TrackingMultiStore) CacheMultiStore() storetypes.CacheMultiStore {
 	return tms
 }
 
-func (t *TrackingMultiStore) Clone() storetypes.CacheMultiStore {
-	// Cloning a TrackingMultiStore should not track writes, so we create a new instance
-	// without the historical stores and reset the write count.
+func (t *TrackingMultiStore) Copy() storetypes.CacheMultiStore {
+	historicalStoresCopy := make([]*TrackingMultiStore, 0, len(t.HistoricalStores))
+	for idx, store := range t.HistoricalStores {
+		historicalStoresCopy[idx] = store.Copy().(*TrackingMultiStore)
+	}
 
-	clone := &TrackingMultiStore{
-		Store:            t.Store.Clone(),
+	return &TrackingMultiStore{
+		Store:            t.Store.Copy(),
 		Writes:           0,
 		WriteTS:          nil,
-		HistoricalStores: []*TrackingMultiStore{},
+		HistoricalStores: historicalStoresCopy,
 	}
-	return clone
 }
 
 // ValidateWrites tests the number of writes to a tree of tracking multi stores,

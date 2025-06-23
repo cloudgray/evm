@@ -1854,6 +1854,52 @@ var _ = Describe("Calling staking precompile via Solidity", Ordered, func() {
 					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)), "expected tx sender balance to be deducted by fees")
 				})
 
+				It("should revert the changes and NOT delegate - successful tx", func() {
+					delegationAmount := math.NewInt(10)
+
+					callArgs := factory.CallArgs{
+						ContractABI: stakingReverterContract.ABI,
+						MethodName:  "callPrecompileAfterRevert2",
+						Args: []interface{}{
+							big.NewInt(5), s.network.GetValidators()[0].OperatorAddress,
+						},
+					}
+
+					delegateCheck := passCheck.WithExpEvents(staking.EventTypeDelegate, staking.EventTypeDelegate)
+					// Tx should be successful, but no state changes happened
+					res, _, err := s.factory.CallContractAndCheckLogs(
+						s.keyring.GetPrivKey(0),
+						evmtypes.EvmTxArgs{
+							To:       &stkReverterAddr,
+							GasPrice: gasPrice.BigInt(),
+						},
+						callArgs,
+						delegateCheck,
+					)
+					Expect(err).To(BeNil(), "error while calling the smart contract: %v", err)
+					Expect(s.network.NextBlock()).To(BeNil())
+
+					fees := gasPrice.MulRaw(res.GasUsed)
+
+					// contract balance should be deducted by delegation amount
+					balRes, err := s.grpcHandler.GetBalanceFromBank(stkReverterAddr.Bytes(), s.bondDenom)
+					Expect(err).To(BeNil())
+					contractFinalBalance := balRes.Balance
+					Expect(contractFinalBalance.Amount).To(Equal(contractInitialBalance.Amount.Sub(delegationAmount).Sub(delegationAmount)))
+
+					// delegation should have been created
+					qRes, err := s.grpcHandler.GetDelegation(sdk.AccAddress(stkReverterAddr.Bytes()).String(), s.network.GetValidators()[0].OperatorAddress)
+					Expect(err).To(BeNil())
+					Expect(qRes.DelegationResponse.Delegation.GetDelegatorAddr()).To(Equal(sdk.AccAddress(stkReverterAddr.Bytes()).String()), "expected delegator address is equal to contract address")
+					Expect(qRes.DelegationResponse.Delegation.GetShares().BigInt()).To(Equal(delegationAmount.Add(delegationAmount).BigInt()), "expected different delegation shares")
+
+					// delegation amount and fees deducted on tx sender
+					balRes, err = s.grpcHandler.GetBalanceFromBank(s.keyring.GetAccAddr(0), s.bondDenom)
+					Expect(err).To(BeNil())
+					txSenderFinalBal := balRes.Balance
+					Expect(txSenderFinalBal.Amount).To(Equal(txSenderInitialBal.Amount.Sub(fees)), "expected tx sender balance to be deducted by fees")
+				})
+
 				It("should revert the changes and NOT delegate - failed tx - max precompile calls reached", func() {
 					callArgs := factory.CallArgs{
 						ContractABI: stakingReverterContract.ABI,
