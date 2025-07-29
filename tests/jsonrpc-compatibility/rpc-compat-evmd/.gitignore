@@ -1,0 +1,19 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test binary
+*.test
+
+# Go coverage files
+*.out
+
+# Built simulator binaries
+rpc-compat-no-engine
+rpc-compat
+
+# OS files
+.DS_Store
