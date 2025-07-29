@@ -377,3 +377,16 @@ test-system: build
 	mkdir -p ./tests/systemtests/binaries/
 	cp $(BUILDDIR)/evmd ./tests/systemtests/binaries/
 	$(MAKE) -C tests/systemtests test
+
+###############################################################################
+###                        JSON-RPC Compatibility Tests                     ###
+###############################################################################
+
+.PHONY: test-rpc-compat view-rpc-compat
+test-rpc-compat:
+	@echo "Running JSON-RPC compatibility tests with Hive..."
+	cd tests/jsonrpc-compatibility && ./test-rpc-compat.sh
+
+view-rpc-compat:
+	@echo "Starting hiveview server to view test results..."
+	cd tests/jsonrpc-compatibility && ./view-rpc-compat.sh
