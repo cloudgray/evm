@@ -5,10 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 
 	cmn "github.com/cosmos/evm/precompiles/common"
 
@@ -72,13 +70,6 @@ func (p Precompile) CreateValidator(
 		return nil, errors.New(ErrCannotCallFromContract)
 	}
 
-	codeHash := crypto.Keccak256(code)
-	currentState, originalState := stateDB.GetStateAndCommittedState(msgSender, common.BytesToHash(codeHash))
-	if originalState == ethtypes.EmptyCodeHash && currentState != ethtypes.EmptyCodeHash {
-		// call by contract constructor
-		return nil, errors.New(ErrCannotCallFromContract)
-	}
-
 	if msgSender != validatorHexAddr {
 		return nil, fmt.Errorf(cmn.ErrRequesterIsNotMsgSender, msgSender.String(), validatorHexAddr.String())
 	}
@@ -131,23 +122,6 @@ func (p Precompile) EditValidator(
 		return nil, errors.New(ErrCannotCallFromContract)
 	}
 
-	codeHash := crypto.Keccak256(code)
-	currentState, originalState := stateDB.GetStateAndCommittedState(msgSender, common.BytesToHash(codeHash))
-	if originalState == ethtypes.EmptyCodeHash && currentState != ethtypes.EmptyCodeHash {
-		// call by contract constructor
-		return nil, errors.New(ErrCannotCallFromContract)
-	}
-
-	if msgSender != validatorHexAddr {
-		return nil, fmt.Errorf(cmn.ErrRequesterIsNotMsgSender, msgSender.String(), validatorHexAddr.String())
-	}
-
-	// Execute the transaction using the message server
-	if _, err = p.stakingMsgServer.EditValidator(ctx, msg); err != nil {
-		return nil, err
-	}
-
-	// Emit the event for the edit validator transaction
 	if err = p.EmitEditValidatorEvent(ctx, stateDB, msg, validatorHexAddr); err != nil {
 		return nil, err
 	}
