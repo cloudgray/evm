@@ -151,6 +151,50 @@ func (s *BaseTestSuite) CheckTxsPendingAsync(expPendingTxs []*TxInfo) error {
 	return nil
 }
 
+// CheckTxsPendingOrCommittedAsync verifies that the expected transactions are still pending in the mempool
+// or have already been committed. This helper is useful for scenarios where the expected pending transactions
+// might be included in a block before the verification finishes, which would otherwise produce flaky results.
+func (s *BaseTestSuite) CheckTxsPendingOrCommittedAsync(expPendingTxs []*TxInfo) error {
+	if len(expPendingTxs) == 0 {
+		return nil
+	}
+
+	var (
+		wg     sync.WaitGroup
+		mu     sync.Mutex
+		errors []error
+	)
+
+	for _, txInfo := range expPendingTxs {
+		wg.Add(1)
+		go func(tx *TxInfo) { //nolint:gosec // Concurrency is intentional for parallel tx checking
+			defer wg.Done()
+
+			pendingErr := s.CheckTxPending(tx.DstNodeID, tx.TxHash, tx.TxType, defaultTxPoolContentTimeout)
+			if pendingErr == nil {
+				return
+			}
+
+			commitErr := s.WaitForCommit(tx.DstNodeID, tx.TxHash, tx.TxType, defaultTxPoolContentTimeout)
+			if commitErr == nil {
+				return
+			}
+
+			mu.Lock()
+			errors = append(errors, fmt.Errorf("tx %s is neither pending nor committed (pending err: %v, commit err: %v)", tx.TxHash, pendingErr, commitErr))
+			mu.Unlock()
+		}(txInfo)
+	}
+
+	wg.Wait()
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to check transactions are pending or committed: %w", errors[0])
+	}
+
+	return nil
+}
+
 // CheckTxsQueuedAsync verifies asynchronously that the expected queued transactions are actually queued
 // (and not pending) in the mempool. It mirrors CheckTxsPendingAsync in style to better surface API
 // failures when querying txpool content.
