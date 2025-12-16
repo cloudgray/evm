@@ -18,45 +18,45 @@ func RunTxsReplacement(t *testing.T, base *suite.BaseTestSuite) {
 	}{
 		// Note: These test cases are unstable in the GitHub CI environment.
 		// When running it locally, please uncomment it and run the test.
-		//
-		// {
-		// 	name: "single pending tx submitted to same nodes %s",
-		// 	actions: []func(*TestSuite, *TestContext){
-		// 		func(s *TestSuite, ctx *TestContext) {
-		// 			signer := s.Acc(0)
-		// 			_, err := s.SendTx(t, s.Node(0), signer.ID, 0, s.GasPriceMultiplier(10), nil)
-		// 			require.NoError(t, err, "failed to send tx")
-		// 			tx2, err := s.SendTx(t, s.Node(1), signer.ID, 0, s.GasPriceMultiplier(20), big.NewInt(1))
-		// 			require.NoError(t, err, "failed to send tx")
 
-		// 			ctx.SetExpPendingTxs(tx2)
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "multiple pending txs submitted to same nodes %s",
-		// 	actions: []func(*TestSuite, *TestContext){
-		// 		func(s *TestSuite, ctx *TestContext) {
-		// 			signer := s.Acc(0)
-		// 			_, err := s.SendTx(t, s.Node(0), signer.ID, 0, s.GasPriceMultiplier(10), nil)
-		// 			require.NoError(t, err, "failed to send tx")
-		// 			tx2, err := s.SendTx(t, s.Node(1), signer.ID, 0, s.GasPriceMultiplier(20), big.NewInt(1))
-		// 			require.NoError(t, err, "failed to send tx")
+		{
+			name: "single pending tx submitted to same nodes %s",
+			actions: []func(*TestSuite, *TestContext){
+				func(s *TestSuite, ctx *TestContext) {
+					signer := s.Acc(0)
+					_, err := s.SendTx(t, s.Node(0), signer.ID, 0, s.GasPriceMultiplier(10), nil)
+					require.NoError(t, err, "failed to send tx")
+					tx2, err := s.SendTx(t, s.Node(1), signer.ID, 0, s.GasPriceMultiplier(20), big.NewInt(1))
+					require.NoError(t, err, "failed to send tx")
 
-		// 			_, err = s.SendTx(t, s.Node(0), signer.ID, 1, s.GasPriceMultiplier(10), nil)
-		// 			require.NoError(t, err, "failed to send tx")
-		// 			tx4, err := s.SendTx(t, s.Node(1), signer.ID, 1, s.GasPriceMultiplier(20), big.NewInt(1))
-		// 			require.NoError(t, err, "failed to send tx")
+					ctx.SetExpPendingTxs(tx2)
+				},
+			},
+		},
+		{
+			name: "multiple pending txs submitted to same nodes %s",
+			actions: []func(*TestSuite, *TestContext){
+				func(s *TestSuite, ctx *TestContext) {
+					signer := s.Acc(0)
+					_, err := s.SendTx(t, s.Node(0), signer.ID, 0, s.GasPriceMultiplier(10), nil)
+					require.NoError(t, err, "failed to send tx")
+					tx2, err := s.SendTx(t, s.Node(1), signer.ID, 0, s.GasPriceMultiplier(20), big.NewInt(1))
+					require.NoError(t, err, "failed to send tx")
 
-		// 			_, err = s.SendTx(t, s.Node(0), signer.ID, 2, s.GasPriceMultiplier(10), nil)
-		// 			require.NoError(t, err, "failed to send tx")
-		// 			tx6, err := s.SendTx(t, s.Node(1), signer.ID, 2, s.GasPriceMultiplier(20), big.NewInt(1))
-		// 			require.NoError(t, err, "failed to send tx")
+					_, err = s.SendTx(t, s.Node(0), signer.ID, 1, s.GasPriceMultiplier(10), nil)
+					require.NoError(t, err, "failed to send tx")
+					tx4, err := s.SendTx(t, s.Node(1), signer.ID, 1, s.GasPriceMultiplier(20), big.NewInt(1))
+					require.NoError(t, err, "failed to send tx")
 
-		// 			ctx.SetExpPendingTxs(tx2, tx4, tx6)
-		// 		},
-		// 	},
-		// },
+					_, err = s.SendTx(t, s.Node(0), signer.ID, 2, s.GasPriceMultiplier(10), nil)
+					require.NoError(t, err, "failed to send tx")
+					tx6, err := s.SendTx(t, s.Node(1), signer.ID, 2, s.GasPriceMultiplier(20), big.NewInt(1))
+					require.NoError(t, err, "failed to send tx")
+
+					ctx.SetExpPendingTxs(tx2, tx4, tx6)
+				},
+			},
+		},
 		{
 			name: "single queued tx %s",
 			actions: []func(*TestSuite, *TestContext){
@@ -261,17 +261,17 @@ func RunMixedTxsReplacementEVMAndCosmos(t *testing.T, base *suite.BaseTestSuite)
 			},
 		},
 		{
-			// name: "single pending tx (low prio cosmos tx first) %s",
-			// actions: []func(*TestSuite, *TestContext){
-			// 	func(s *TestSuite, ctx *TestContext) {
-			// 		_, err := s.SendCosmosTx(t, s.Node(0), "acc0", 0, s.BaseFeeMultiplier(10), nil)
-			// 		require.NoError(t, err, "failed to send tx")
-			// 		tx2, err := s.SendEthTx(t, s.Node(1), "acc0", 0, s.BaseFeeMultiplier(20), s.BaseFeeMultiplier(20))
-			// 		require.NoError(t, err, "failed to send tx")
-			//
-			// 		ctx.SetExpPendingTxs(tx2)
-			// 	},
-			// },
+			name: "single pending tx (low prio cosmos tx first) %s",
+			actions: []func(*TestSuite, *TestContext){
+				func(s *TestSuite, ctx *TestContext) {
+					_, err := s.SendCosmosTx(t, s.Node(0), "acc0", 0, s.BaseFeeMultiplier(10), nil)
+					require.NoError(t, err, "failed to send tx")
+					tx2, err := s.SendEthTx(t, s.Node(1), "acc0", 0, s.BaseFeeMultiplier(20), s.BaseFeeMultiplier(20))
+					require.NoError(t, err, "failed to send tx")
+
+					ctx.SetExpPendingTxs(tx2)
+				},
+			},
 		},
 		{
 			// NOTE: Skip this test for now

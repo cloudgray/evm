@@ -65,6 +65,7 @@ func RunCosmosTxsCompatibility(t *testing.T, base *suite.BaseTestSuite) {
 				s.BeforeEachCase(t, ctx)
 				for _, action := range tc.actions {
 					action(s, ctx)
+					s.AfterEachAction(t, ctx)
 				}
 				s.AfterEachCase(t, ctx)
 			})

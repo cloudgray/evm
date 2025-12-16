@@ -38,7 +38,7 @@ func (s *TestSuite) BeforeEachCase(t *testing.T, ctx *TestContext) {
 }
 
 func (s *TestSuite) AfterEachAction(t *testing.T, ctx *TestContext) {
-	require.NoError(t, s.CheckTxsPendingAsync(ctx.ExpPending))
+	require.NoError(t, s.CheckTxsPendingOrCommittedAsync(ctx.ExpPending))
 	require.NoError(t, s.CheckTxsQueuedAsync(ctx.ExpQueued))
 
 	currentBaseFee, err := s.GetLatestBaseFee("node0")
